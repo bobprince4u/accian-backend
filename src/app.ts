@@ -21,13 +21,14 @@ const app: Application = express();
 app.use(helmet());
 
 //CORS configuration
-const corsOptions: CorsOptions = {
+{
+  /* const corsOptions: CorsOptions = {
   origin:
     process.env.NODE_ENV === "production"
       ? [
-          "https://accianng.com",
-          "https://www.accianng.com",
-          "https://admin.accianng.com",
+          "https://accian.co.uk",
+          "https://www.accian.co.uk",
+          "https://accian.co.uk/admin",
         ]
       : [
           "http://localhost:5173",
@@ -39,6 +40,40 @@ const corsOptions: CorsOptions = {
   credentials: true,
   optionsSuccessStatus: 200,
 };
+app.use(cors(corsOptions)); */
+}
+
+//CORS configuration
+const allowedOrigins = process.env.FRONTEND_URL
+  ? process.env.FRONTEND_URL.split(",")
+  : process.env.NODE_ENV === "production"
+  ? ["https://accian.co.uk", "https://www.accian.co.uk"]
+  : [
+      "http://localhost:5173",
+      "http://localhost:5174",
+      "http://localhost:2025",
+      "http://localhost:2024",
+      "http://localhost:2023",
+    ];
+
+const corsOptions: CorsOptions = {
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, Postman, curl)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.log(`CORS blocked origin: ${origin}`);
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true,
+  optionsSuccessStatus: 200,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
+
 app.use(cors(corsOptions));
 
 //Body parser middleware
