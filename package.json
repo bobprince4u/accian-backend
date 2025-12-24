@@ -1,8 +1,8 @@
 {
   "name": "accian-backend",
   "version": "1.0.0",
-  "description": "ACCIAN Nigeria Limited - Backend API",
-  "main": "server.ts",
+  "description": "ACCIAN Limited - Backend API",
+  "main": "dist/server.js",
   "scripts": {
     "start": "node server.ts",
     "dev": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' server.ts",
@@ -14,7 +14,7 @@
     "backend",
     "accian"
   ],
-  "author": "ACCIAN Nigeria Limited",
+  "author": "ACCIAN Limited",
   "license": "ISC",
   "dependencies": {
     "@types/jsonwebtoken": "^9.0.10",
