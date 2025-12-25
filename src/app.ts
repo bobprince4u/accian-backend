@@ -18,6 +18,7 @@ import * as rateLimiter from "./middleware/rateLimiter";
 const app: Application = express();
 
 //security middleware
+app.set("trust proxy", 1);
 app.use(helmet());
 
 //CORS configuration

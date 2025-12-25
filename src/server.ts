@@ -1,7 +1,7 @@
-// src/server.ts
 import "dotenv/config";
 import app from "./app";
 import { connectionDatabase } from "./config/database";
+import { runMigrations } from "./migrations/init";
 
 const PORT: number = Number(process.env.PORT) || 2025;
 
@@ -12,10 +12,17 @@ console.log("   ACCIAN NIGERIA LIMITED - BACKEND API SERVER");
 console.log("═══════════════════════════════════════════════════");
 console.log("");
 
-// Connect to database and start server
-connectionDatabase()
-  .then(() => {
-    // Start server
+// Async startup function
+async function startServer() {
+  try {
+    // 1. Connect to database
+    await connectionDatabase();
+    console.log("✅ Database connected");
+
+    // 2. Run migrations
+    await runMigrations();
+
+    // 3. Start server
     app.listen(PORT, () => {
       console.log("🚀 Server Status: RUNNING");
       console.log(`📡 Port: ${PORT}`);
@@ -25,6 +32,8 @@ connectionDatabase()
       console.log("");
       console.log("📋 Available Endpoints:");
       console.log(`   POST   /api/contact`);
+      console.log(`   GET    /api/services`);
+      console.log(`   GET    /api/testimonials`);
       console.log(`   GET    /api/projects`);
       console.log(`   GET    /api/projects/:slug`);
       console.log(`   POST   /api/admin/login`);
@@ -35,12 +44,20 @@ connectionDatabase()
       console.log("═══════════════════════════════════════════════════");
       console.log("");
     });
-  })
-  .catch((error: Error) => {
-    console.error("❌ Failed to start server:", error.message);
-    console.error("Stack:", error.stack);
+  } catch (error) {
+    console.error(
+      "❌ Failed to start server:",
+      error instanceof Error ? error.message : error
+    );
+    if (error instanceof Error && error.stack) {
+      console.error("Stack:", error.stack);
+    }
     process.exit(1);
-  });
+  }
+}
+
+// Start the server
+startServer();
 
 // Handle unhandled promise rejections
 process.on("unhandledRejection", (err: Error) => {
