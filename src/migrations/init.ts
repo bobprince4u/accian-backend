@@ -158,9 +158,79 @@ export async function runMigrations() {
     );
     console.log("✅ Indexes created/verified");
 
-    console.log("✅ All migrations completed successfully");
+    // ============================================
+    // SEED DATA
+    // ============================================
+
+    // Seed testimonials
+    console.log("📝 Checking testimonials data...");
+    const testimonialsCount = await query(`SELECT COUNT(*) FROM testimonials`);
+
+    if (parseInt(testimonialsCount.rows[0].count) === 0) {
+      console.log("📝 Seeding testimonials data...");
+      await query(`
+        INSERT INTO testimonials (client_name, client_position, client_company, testimonial_text, rating, featured, published) VALUES
+        ('Adebayo Johnson', 'CTO', 'TechVenture Nigeria', 'ACCIAN''s technical expertise and professionalism are unmatched. They delivered our complex enterprise system on time and within budget, exceeding all our expectations.', 5, true, true),
+        ('Oluwaseun Adeyemi', 'Managing Director', 'Enterprise Solutions Group', 'ACCIAN doesn''t just build software—they solve business problems. Their strategic approach and technical execution helped us streamline operations and grow revenue.', 5, false, true),
+        ('Chioma Okafor', 'IT Director', 'Financial Solutions Ltd', 'The cybersecurity audit conducted by ACCIAN was thorough and eye-opening. Their recommendations significantly strengthened our security posture and helped us achieve compliance certification.', 5, true, true)
+      `);
+      console.log("✅ Testimonials seeded: 3 records");
+    } else {
+      console.log(
+        `ℹ️  Testimonials already exist: ${testimonialsCount.rows[0].count} records`
+      );
+    }
+
+    // Seed services
+    console.log("📝 Checking services data...");
+    const servicesCount = await query(`SELECT COUNT(*) FROM services`);
+
+    if (parseInt(servicesCount.rows[0].count) === 0) {
+      console.log("📝 Seeding services data...");
+      await query(`
+        INSERT INTO services (title, slug, icon, short_description, full_description, features, published) VALUES
+        ('IT Consulting & Advisory', 'it-consulting-advisory', 'Code', 
+         'Strategic technology guidance to support growth and efficiency.', 
+         'We help organisations plan, implement, and optimize their IT systems through expert advice and practical solutions.',
+         ARRAY['IT strategy and digital transformation', 'Systems analysis and architecture design', 'Cybersecurity and data protection advisory', 'Cloud and infrastructure consulting', 'Technology project management'],
+         true),
+        
+        ('Business & Domestic Software Development', 'business-domestic-software-development', 'Code',
+         'Custom software solutions built around real-world needs.',
+         'We design, develop, and maintain secure, scalable software for businesses and individuals.',
+         ARRAY['Web and mobile application development', 'Custom business systems and automation', 'SaaS product development', 'Software maintenance and support', 'Integration with third-party platforms'],
+         true),
+        
+        ('Education & Training', 'education-training', 'Code',
+         'Practical learning for skills, careers, and personal development.',
+         'We deliver flexible education and training programmes tailored to professional and community needs.',
+         ARRAY['Professional and vocational training', 'Digital and technology skills courses', 'Workshops, seminars, and online learning', 'Business and personal development programmes'],
+         true),
+        
+        ('Social Care & Community Support', 'social-care-community-support', 'Code',
+         'Supporting independence, well-being, and quality of life.',
+         'Providing compassionate care and support services to help individuals maintain independence and quality of life.',
+         ARRAY['Domiciliary and home-based support', 'Personal care and daily living assistance', 'Companionship and wellbeing support', 'Community-based social work services', 'Support for independent living'],
+         true),
+        
+        ('Data Science, AI & Predictive Analytics', 'data-science-ai-predictive-analytics', 'Code',
+         'Advanced data science solutions for informed decision making.',
+         'Advanced data science solutions including machine learning modelling, financial risk analysis, and predictive analytics.',
+         ARRAY['Machine Learning Modelling', 'Financial Risk Modelling', 'Predictive Analytics', 'Big Data Analytics'],
+         true)
+      `);
+      console.log("✅ Services seeded: 5 records");
+    } else {
+      console.log(
+        `ℹ️  Services already exist: ${servicesCount.rows[0].count} records`
+      );
+    }
+
+    console.log("✅ All migrations and seeding completed successfully");
   } catch (error) {
-    console.error("❌ Migration failed:", error);
-    // Don't throw - allow server to continue even if tables already exist
+    console.error("❌ Migration error:", error);
+    if (error instanceof Error) {
+      console.error("Details:", error.message);
+    }
   }
 }
