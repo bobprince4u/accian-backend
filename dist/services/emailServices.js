@@ -6,51 +6,27 @@ var __importDefault =
   };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.sendAdminNotification = exports.sendUserConfirmation = void 0;
-const nodemailer_1 = __importDefault(require("nodemailer"));
+
+const sgMail = require("@sendgrid/mail");
 const promises_1 = __importDefault(require("fs/promises"));
 const path_1 = __importDefault(require("path"));
 const database_1 = require("../config/database");
 
-// Create email transporter with comprehensive timeout settings
-const transporter = nodemailer_1.default.createTransport({
-  host: process.env.EMAIL_HOST,
-  port: Number(process.env.EMAIL_PORT) || 587,
-  secure: false, // true for 465, false for 587
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-  // Add all timeout configurations
-  connectionTimeout: 30000, // 30 seconds
-  greetingTimeout: 30000, // 30 seconds
-  socketTimeout: 30000, // 30 seconds
-  // Enable debugging in development
-  debug: process.env.NODE_ENV === "development",
-  logger: process.env.NODE_ENV === "development",
-});
+// Initialize SendGrid
+const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
+const FROM_EMAIL =
+  process.env.SENDGRID_FROM_EMAIL ||
+  process.env.EMAIL_USER ||
+  "noreply@accian.co.uk";
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 
-// Verify transporter configuration on startup
-const verifyEmailService = async () => {
-  try {
-    await transporter.verify();
-    console.log("✅ Email service ready and verified");
-    console.log(`📧 Using: ${process.env.EMAIL_USER}`);
-    console.log(`🔌 Host: ${process.env.EMAIL_HOST}:${process.env.EMAIL_PORT}`);
-  } catch (error) {
-    console.error(
-      "❌ Email service error:",
-      error instanceof Error ? error.message : String(error)
-    );
-    console.error("📋 Configuration:");
-    console.error("   HOST:", process.env.EMAIL_HOST);
-    console.error("   PORT:", process.env.EMAIL_PORT);
-    console.error("   USER:", process.env.EMAIL_USER);
-    console.error("   PASS:", process.env.EMAIL_PASS ? "***SET***" : "NOT SET");
-  }
-};
-
-// Call verification on module load
-verifyEmailService();
+if (SENDGRID_API_KEY) {
+  sgMail.setApiKey(SENDGRID_API_KEY);
+  console.log("✅ SendGrid initialized");
+  console.log(`📧 From Email: ${FROM_EMAIL}`);
+} else {
+  console.error("❌ SENDGRID_API_KEY not found in environment variables");
+}
 
 // Load email template
 const loadTemplate = async (templateName) => {
@@ -92,7 +68,7 @@ const logEmail = async (
   try {
     await (0, database_1.query)(
       `INSERT INTO email_logs (email_type, recipient_email, subject, status, error_message, sent_at)
-             VALUES ($1, $2, $3, $4, $5, $6)`,
+       VALUES ($1, $2, $3, $4, $5, $6)`,
       [emailType, recipientEmail, subject, status, errorMessage, new Date()]
     );
   } catch (error) {
@@ -113,22 +89,33 @@ const sendUserConfirmation = async (data) => {
       referenceNumber: data.referenceNumber,
     });
 
-    const mailOptions = {
-      from: `"ACCIAN Nigeria Limited" <${process.env.EMAIL_USER}>`,
+    const msg = {
       to: data.to,
+      from: {
+        email: FROM_EMAIL,
+        name: "ACCIAN Nigeria Limited",
+      },
       subject: "Thank you for contacting ACCIAN Nigeria Limited",
-      html,
+      html: html,
     };
 
-    const info = await transporter.sendMail(mailOptions);
-    await logEmail("user_confirmation", data.to, mailOptions.subject, "sent");
+    const response = await sgMail.send(msg);
+    const messageId = response[0].headers["x-message-id"];
+
+    await logEmail("user_confirmation", data.to, msg.subject, "sent");
     console.log(`✅ Confirmation email sent to ${data.to}`);
-    console.log(`📬 Message ID: ${info.messageId}`);
-    return { success: true, messageId: info.messageId };
+    console.log(`📬 Message ID: ${messageId}`);
+
+    return { success: true, messageId: messageId };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("❌ Failed to send user confirmation email:", errorMessage);
-    console.error("Email sending error (user):", errorMessage);
+
+    // Log SendGrid-specific error details
+    if (error.response) {
+      console.error("SendGrid Error Details:", error.response.body);
+    }
+
     await logEmail(
       "user_confirmation",
       data.to,
@@ -136,7 +123,7 @@ const sendUserConfirmation = async (data) => {
       "failed",
       errorMessage
     );
-    // Don't throw - let the app continue
+
     return { success: false, error: errorMessage };
   }
 };
@@ -157,33 +144,41 @@ const sendAdminNotification = async (data) => {
       }),
     });
 
-    const mailOptions = {
-      from: `"ACCIAN Contact Form" <${process.env.EMAIL_USER}>`,
-      to: process.env.ADMIN_EMAIL,
+    const msg = {
+      to: ADMIN_EMAIL,
+      from: {
+        email: FROM_EMAIL,
+        name: "ACCIAN Contact Form",
+      },
       subject: `🔔 New Contact Form Submission - ${data.referenceNumber}`,
-      html,
+      html: html,
     };
 
-    const info = await transporter.sendMail(mailOptions);
-    await logEmail(
-      "admin_notification",
-      process.env.ADMIN_EMAIL,
-      mailOptions.subject,
-      "sent"
-    );
+    const response = await sgMail.send(msg);
+    const messageId = response[0].headers["x-message-id"];
+
+    await logEmail("admin_notification", ADMIN_EMAIL, msg.subject, "sent");
+
     console.log(`✅ Admin notification email sent`);
-    console.log(`📬 Message ID: ${info.messageId}`);
-    return { success: true, messageId: info.messageId };
+    console.log(`📬 Message ID: ${messageId}`);
+
+    return { success: true, messageId: messageId };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("❌ Failed to send admin notification email:", errorMessage);
+
+    if (error.response) {
+      console.error("SendGrid Error Details:", error.response.body);
+    }
+
     await logEmail(
       "admin_notification",
-      process.env.ADMIN_EMAIL || "",
+      ADMIN_EMAIL || "",
       "Admin Notification",
       "failed",
       errorMessage
     );
+
     return { success: false, error: errorMessage };
   }
 };
