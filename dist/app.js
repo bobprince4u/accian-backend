@@ -52,24 +52,59 @@ const errorHandler_1 = __importDefault(require("./middleware/errorHandler"));
 const rateLimiter = __importStar(require("./middleware/rateLimiter"));
 const app = (0, express_1.default)();
 //security middleware
+app.set("trust proxy", 1);
 app.use((0, helmet_1.default)());
 //CORS configuration
-const corsOptions = {
-    origin: process.env.NODE_ENV === "production"
+{
+    /* const corsOptions: CorsOptions = {
+    origin:
+      process.env.NODE_ENV === "production"
         ? [
-            "https://accianng.com",
-            "https://www.accianng.com",
-            "https://admin.accianng.com",
-        ]
+            "https://accian.co.uk",
+            "https://www.accian.co.uk",
+            "https://accian.co.uk/admin",
+          ]
         : [
             "http://localhost:5173",
             "http://localhost:5174", // <-- ADD THIS LINE
             "http://localhost:2025",
             "http://localhost:2024",
             "http://localhost:2023",
-        ],
+          ],
     credentials: true,
     optionsSuccessStatus: 200,
+  };
+  app.use(cors(corsOptions)); */
+}
+//CORS configuration
+const allowedOrigins = process.env.FRONTEND_URL
+    ? process.env.FRONTEND_URL.split(",")
+    : process.env.NODE_ENV === "production"
+        ? ["https://accian.co.uk", "https://www.accian.co.uk"]
+        : [
+            "http://localhost:5173",
+            "http://localhost:5174",
+            "http://localhost:2025",
+            "http://localhost:2024",
+            "http://localhost:2023",
+        ];
+const corsOptions = {
+    origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps, Postman, curl)
+        if (!origin)
+            return callback(null, true);
+        if (allowedOrigins.includes(origin)) {
+            callback(null, true);
+        }
+        else {
+            console.log(`CORS blocked origin: ${origin}`);
+            callback(new Error("Not allowed by CORS"));
+        }
+    },
+    credentials: true,
+    optionsSuccessStatus: 200,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
 };
 app.use((0, cors_1.default)(corsOptions));
 //Body parser middleware
