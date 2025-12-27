@@ -80,7 +80,11 @@ app.use((0, helmet_1.default)());
 const allowedOrigins = process.env.FRONTEND_URL
     ? process.env.FRONTEND_URL.split(",")
     : process.env.NODE_ENV === "production"
-        ? ["https://accian.co.uk", "https://www.accian.co.uk"]
+        ? [
+            "https://accian.co.uk",
+            "https://www.accian.co.uk",
+            "https://admin.accian.co.uk",
+        ]
         : [
             "http://localhost:5173",
             "http://localhost:5174",

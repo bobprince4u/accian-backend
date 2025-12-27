@@ -120,22 +120,46 @@ const login = async (req, res, next) => {
     }
 };
 exports.login = login;
-// ========================
+/// ========================
 // Get All Contacts
 // ========================
 const getContacts = async (req, res, next) => {
     try {
         console.log("📬 Fetching all contacts for admin dashboard...");
-        // Query all contacts, ordering by the most recent first
         const result = await (0, database_1.query)("SELECT * FROM contacts ORDER BY created_at DESC");
+        // MAP snake_case to camelCase
+        const contacts = result.rows.map((row) => ({
+            id: row.id,
+            fullName: row.full_name, // full_name → fullName
+            email: row.email,
+            company: row.company_name || "", // company_name → company ✅
+            phone: row.phone || "",
+            service: row.service_interest || "", // service_interest → service ✅
+            budget: row.project_budget || "",
+            timeline: row.project_timeline || "",
+            message: row.message || "",
+            hearAbout: row.how_heard || "",
+            status: row.status === "new"
+                ? "New"
+                : row.status === "contacted"
+                    ? "Contacted"
+                    : row.status === "in-progress"
+                        ? "In Progress"
+                        : row.status === "converted"
+                            ? "Converted"
+                            : "Closed",
+            createdAt: row.created_at,
+            lastUpdated: row.updated_at || row.created_at,
+        }));
+        console.log("✅ Backend mapped contact:", contacts[0]);
         res.status(200).json({
             success: true,
-            data: result.rows,
-            count: result.rows.length,
+            data: contacts, // Send mapped data
+            count: contacts.length,
         });
     }
     catch (error) {
-        console.error("❌ Get all contacts error:", error instanceof Error ? error.message : String(error));
+        console.error("❌ Get all contacts error:", error);
         next(error);
     }
 };
@@ -146,7 +170,6 @@ exports.getContacts = getContacts;
 const getContactById = async (req, res, next) => {
     try {
         const { id } = req.params;
-        // Validate the ID
         if (!id) {
             return res.status(400).json({
                 success: false,
@@ -161,9 +184,26 @@ const getContactById = async (req, res, next) => {
                 message: "Contact not found",
             });
         }
+        const row = result.rows[0];
+        // Map database fields to frontend field names
+        const contact = {
+            id: row.id,
+            fullName: row.full_name,
+            email: row.email,
+            company: row.company_name || "",
+            phone: row.phone || "",
+            service: row.service_interest || "",
+            budget: row.project_budget || "",
+            timeline: row.project_timeline || "",
+            message: row.message || "",
+            hearAbout: row.how_heard || "",
+            status: mapDatabaseStatus(row.status),
+            createdAt: row.created_at,
+            lastUpdated: row.updated_at || row.created_at,
+        };
         res.status(200).json({
             success: true,
-            data: result.rows[0],
+            data: contact,
         });
     }
     catch (error) {
@@ -173,35 +213,67 @@ const getContactById = async (req, res, next) => {
 };
 exports.getContactById = getContactById;
 // ========================
+// Helper: Map Database Status to Frontend Status
+// ========================
+function mapDatabaseStatus(dbStatus) {
+    const statusMap = {
+        new: "New",
+        contacted: "Contacted",
+        "in-progress": "In Progress",
+        converted: "Converted",
+        closed: "Closed",
+    };
+    return statusMap[dbStatus] || "New";
+}
+// ========================
 // Update Contact Status
 // ========================
 const updateContactStatus = async (req, res, next) => {
     try {
         const { id } = req.params;
         const { status } = req.body;
-        const validStatuses = [
-            "new",
-            "contacted",
-            "in-progress",
-            "converted",
-            "closed",
-        ];
-        if (!validStatuses.includes(status)) {
+        // Map frontend status to database status
+        const statusMap = {
+            New: "new",
+            Contacted: "contacted",
+            "In Progress": "in-progress",
+            Converted: "converted",
+            Closed: "closed",
+        };
+        const dbStatus = statusMap[status];
+        if (!dbStatus) {
             return res.status(400).json({
                 success: false,
                 message: "Invalid status value",
             });
         }
-        const result = await (0, database_1.query)("UPDATE contacts SET status = $1, updated_at = $2 WHERE id = $3 RETURNING *", [status, new Date(), id]);
+        const result = await (0, database_1.query)("UPDATE contacts SET status = $1, updated_at = $2 WHERE id = $3 RETURNING *", [dbStatus, new Date(), id]);
         if (result.rows.length === 0) {
             return res
                 .status(404)
                 .json({ success: false, message: "Contact not found" });
         }
+        const row = result.rows[0];
+        // Map database fields to frontend field names
+        const contact = {
+            id: row.id,
+            fullName: row.full_name,
+            email: row.email,
+            company: row.company_name || "",
+            phone: row.phone || "",
+            service: row.service_interest || "",
+            budget: row.project_budget || "",
+            timeline: row.project_timeline || "",
+            message: row.message || "",
+            hearAbout: row.how_heard || "",
+            status: mapDatabaseStatus(row.status),
+            createdAt: row.created_at,
+            lastUpdated: row.updated_at || row.created_at,
+        };
         return res.json({
             success: true,
             message: "Status updated successfully",
-            data: result.rows[0],
+            data: contact,
         });
     }
     catch (error) {
