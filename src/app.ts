@@ -79,7 +79,7 @@ const corsOptions: CorsOptions = {
   allowedHeaders: ["Content-Type", "Authorization"],
 };
 
-app.use(cors(corsOptions));
+app.use("*", cors(corsOptions));
 
 //Body parser middleware
 app.use(express.json({ limit: "10mb" }));
