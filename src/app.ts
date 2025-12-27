@@ -19,36 +19,17 @@ const app: Application = express();
 
 //security middleware
 app.set("trust proxy", 1);
-app.use(helmet());
 
-//CORS configuration
-{
-  /* const corsOptions: CorsOptions = {
-  origin:
-    process.env.NODE_ENV === "production"
-      ? [
-          "https://accian.co.uk",
-          "https://www.accian.co.uk",
-          "https://accian.co.uk/admin",
-        ]
-      : [
-          "http://localhost:5173",
-          "http://localhost:5174", // <-- ADD THIS LINE
-          "http://localhost:2025",
-          "http://localhost:2024",
-          "http://localhost:2023",
-        ],
-  credentials: true,
-  optionsSuccessStatus: 200,
-};
-app.use(cors(corsOptions)); */
-}
-
-//CORS configuration
+// ⚠️ IMPORTANT: Apply CORS BEFORE helmet
+// CORS configuration
 const allowedOrigins = process.env.FRONTEND_URL
   ? process.env.FRONTEND_URL.split(",")
   : process.env.NODE_ENV === "production"
-  ? ["https://accian.co.uk", "https://www.accian.co.uk"]
+  ? [
+      "https://accian.co.uk",
+      "https://www.accian.co.uk",
+      "https://admin.accian.co.uk",
+    ]
   : [
       "http://localhost:5173",
       "http://localhost:5174",
@@ -59,14 +40,23 @@ const allowedOrigins = process.env.FRONTEND_URL
 
 const corsOptions: CorsOptions = {
   origin: (origin, callback) => {
+    // 🔍 DEBUG: Log all incoming origins
+    console.log(`🔍 CORS Check - Incoming Origin: ${origin}`);
+    console.log(`🔍 Allowed Origins:`, allowedOrigins);
+
     // Allow requests with no origin (like mobile apps, Postman, curl)
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      console.log("✅ CORS: Allowing request with no origin");
+      return callback(null, true);
+    }
 
     if (allowedOrigins.includes(origin)) {
+      console.log(`✅ CORS: Origin ${origin} is allowed`);
       callback(null, true);
     } else {
-      console.log(`CORS blocked origin: ${origin}`);
-      callback(new Error("Not allowed by CORS"));
+      console.log(`❌ CORS blocked origin: ${origin}`);
+      console.log(`❌ Available origins:`, allowedOrigins);
+      callback(new Error(`Not allowed by CORS. Origin: ${origin}`));
     }
   },
   credentials: true,
@@ -75,7 +65,19 @@ const corsOptions: CorsOptions = {
   allowedHeaders: ["Content-Type", "Authorization"],
 };
 
+// Apply CORS middleware
 app.use(cors(corsOptions));
+
+// Handle preflight requests explicitly
+app.options("*", cors(corsOptions));
+
+// Apply helmet AFTER cors
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
+  })
+);
 
 //Body parser middleware
 app.use(express.json({ limit: "10mb" }));
