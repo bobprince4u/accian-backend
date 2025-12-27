@@ -1,4 +1,4 @@
-import nodemailer, { Transporter, SentMessageInfo } from "nodemailer";
+import sgMail from "@sendgrid/mail";
 import fs from "fs/promises";
 import path from "path";
 import { query } from "../config/database";
@@ -22,27 +22,24 @@ interface AdminNotificationData {
   howHeard?: string;
   referenceNumber: string;
   timestamp: string | number;
+  id?: number;
 }
 
-// Create email transporter
-const transporter: Transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST,
-  port: Number(process.env.EMAIL_PORT),
-  secure: false, // true for 465, false for other ports
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+// Initialize SendGrid
+const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
+const FROM_EMAIL =
+  process.env.SENDGRID_FROM_EMAIL ||
+  process.env.EMAIL_USER ||
+  "noreply@accian.co.uk";
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 
-// Verify transporter configuration
-transporter.verify((error: Error | null, success: boolean) => {
-  if (error) {
-    console.error("❌ Email service error:", error.message);
-  } else {
-    console.log("✅ Email service ready");
-  }
-});
+if (SENDGRID_API_KEY) {
+  sgMail.setApiKey(SENDGRID_API_KEY);
+  console.log("✅ SendGrid initialized");
+  console.log(`📧 From Email: ${FROM_EMAIL}`);
+} else {
+  console.error("❌ SENDGRID_API_KEY not found in environment variables");
+}
 
 // Load email template
 const loadTemplate = async (templateName: string): Promise<string> => {
@@ -66,12 +63,12 @@ const loadTemplate = async (templateName: string): Promise<string> => {
 // Replace placeholders in template
 const replacePlaceholders = (
   template: string,
-  data: Record<string, string | undefined>
+  data: Record<string, string | number | undefined>
 ): string => {
   let result = template;
   Object.keys(data).forEach((key) => {
     const regex = new RegExp(`{{${key}}}`, "g");
-    result = result.replace(regex, data[key] || "");
+    result = result.replace(regex, String(data[key] || ""));
   });
   return result;
 };
@@ -87,20 +84,22 @@ const logEmail = async (
   try {
     await query(
       `INSERT INTO email_logs (email_type, recipient_email, subject, status, error_message, sent_at)
-             VALUES ($1, $2, $3, $4, $5, $6)`,
+       VALUES ($1, $2, $3, $4, $5, $6)`,
       [emailType, recipientEmail, subject, status, errorMessage, new Date()]
     );
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("Failed to log email:", errorMessage);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error("Failed to log email:", errorMsg);
   }
 };
 
 // Send user confirmation email
 export const sendUserConfirmation = async (
   data: UserConfirmationData
-): Promise<{ success: boolean; messageId?: string }> => {
+): Promise<{ success: boolean; messageId?: string; error?: string }> => {
   try {
+    console.log(`📤 Attempting to send confirmation email to ${data.to}...`);
+
     const template = await loadTemplate("userConfirmation");
     const html = replacePlaceholders(template, {
       fullName: data.fullName,
@@ -108,23 +107,33 @@ export const sendUserConfirmation = async (
       referenceNumber: data.referenceNumber,
     });
 
-    const mailOptions = {
-      from: `"ACCIAN Nigeria Limited" <${process.env.EMAIL_USER}>`,
+    const msg = {
       to: data.to,
+      from: {
+        email: FROM_EMAIL,
+        name: "ACCIAN Nigeria Limited",
+      },
       subject: "Thank you for contacting ACCIAN Nigeria Limited",
-      html,
+      html: html,
     };
 
-    const info: SentMessageInfo = await transporter.sendMail(mailOptions);
-    await logEmail("user_confirmation", data.to, mailOptions.subject, "sent");
+    const response = await sgMail.send(msg);
+    const messageId = response[0].headers["x-message-id"];
 
+    await logEmail("user_confirmation", data.to, msg.subject, "sent");
     console.log(`✅ Confirmation email sent to ${data.to}`);
-    console.log(`Message ID: ${info.messageId}`);
+    console.log(`📬 Message ID: ${messageId}`);
 
-    return { success: true, messageId: info.messageId };
+    return { success: true, messageId: messageId };
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("Failed to send user confirmation email:", errorMessage);
+    console.error("❌ Failed to send user confirmation email:", errorMessage);
+
+    // Log SendGrid-specific error details
+    if (error && typeof error === "object" && "response" in error) {
+      console.error("SendGrid Error Details:", (error as any).response?.body);
+    }
+
     await logEmail(
       "user_confirmation",
       data.to,
@@ -132,7 +141,8 @@ export const sendUserConfirmation = async (
       "failed",
       errorMessage
     );
-    throw error;
+
+    return { success: false, error: errorMessage };
   }
 };
 
@@ -141,6 +151,8 @@ export const sendAdminNotification = async (
   data: AdminNotificationData
 ): Promise<{ success: boolean; messageId?: string; error?: string }> => {
   try {
+    console.log(`📤 Attempting to send admin notification...`);
+
     const template = await loadTemplate("adminNotification");
     const html = replacePlaceholders(template, {
       ...data,
@@ -151,35 +163,41 @@ export const sendAdminNotification = async (
       }),
     });
 
-    const mailOptions = {
-      from: `"ACCIAN Contact Form" <${process.env.EMAIL_USER}>`,
-      to: process.env.ADMIN_EMAIL,
+    const msg = {
+      to: ADMIN_EMAIL,
+      from: {
+        email: FROM_EMAIL,
+        name: "ACCIAN Contact Form",
+      },
       subject: `🔔 New Contact Form Submission - ${data.referenceNumber}`,
-      html,
+      html: html,
     };
 
-    const info: SentMessageInfo = await transporter.sendMail(mailOptions);
-    await logEmail(
-      "admin_notification",
-      process.env.ADMIN_EMAIL,
-      mailOptions.subject,
-      "sent"
-    );
+    const response = await sgMail.send(msg);
+    const messageId = response[0].headers["x-message-id"];
+
+    await logEmail("admin_notification", ADMIN_EMAIL, msg.subject, "sent");
 
     console.log(`✅ Admin notification email sent`);
-    console.log(`Message ID: ${info.messageId}`);
+    console.log(`📬 Message ID: ${messageId}`);
 
-    return { success: true, messageId: info.messageId };
+    return { success: true, messageId: messageId };
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("Failed to send admin notification email:", errorMessage);
+    console.error("❌ Failed to send admin notification email:", errorMessage);
+
+    if (error && typeof error === "object" && "response" in error) {
+      console.error("SendGrid Error Details:", (error as any).response?.body);
+    }
+
     await logEmail(
       "admin_notification",
-      process.env.ADMIN_EMAIL,
+      ADMIN_EMAIL || "",
       "Admin Notification",
       "failed",
       errorMessage
     );
+
     return { success: false, error: errorMessage };
   }
 };

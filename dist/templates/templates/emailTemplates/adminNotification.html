@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+        color: #333;
+      }
+      .container {
+        max-width: 700px;
+        margin: 0 auto;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 10px;
+      }
+      h2 {
+        color: #0a2540;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      th,
+      td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+      }
+      th {
+        background: #0a2540;
+        color: white;
+        font-weight: bold;
+      }
+      .priority {
+        background: #fef3c7;
+        padding: 15px;
+        border-left: 4px solid #f59e0b;
+        margin: 20px 0;
+        border-radius: 5px;
+      }
+      .message-box {
+        background: white;
+        padding: 15px;
+        border-left: 3px solid #1e40af;
+        margin: 20px 0;
+        border-radius: 5px;
+      }
+      .button {
+        background: #1e40af;
+        color: white;
+        padding: 12px 30px;
+        text-decoration: none;
+        border-radius: 5px;
+        display: inline-block;
+        margin-top: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>🔔 New Contact Form Submission</h2>
+      <p><strong>Reference:</strong> {{referenceNumber}}</p>
+      <p><strong>Received:</strong> {{timestamp}}</p>
+
+      <div class="priority">
+        <strong>Service Interest:</strong> {{serviceInterest}}<br />
+        <strong>Budget Range:</strong> {{projectBudget}}<br />
+        <strong>Timeline:</strong> {{projectTimeline}}
+      </div>
+
+      <h3>Contact Details:</h3>
+      <table>
+        <tr>
+          <th>Field</th>
+          <th>Value</th>
+        </tr>
+        <tr>
+          <td><strong>Full Name</strong></td>
+          <td>{{fullName}}</td>
+        </tr>
+        <tr>
+          <td><strong>Company</strong></td>
+          <td>{{companyName}}</td>
+        </tr>
+        <tr>
+          <td><strong>Email</strong></td>
+          <td><a href="mailto:{{email}}">{{email}}</a></td>
+        </tr>
+        <tr>
+          <td><strong>Phone</strong></td>
+          <td><a href="tel:{{phone}}">{{phone}}</a></td>
+        </tr>
+        <tr>
+          <td><strong>How They Heard</strong></td>
+          <td>{{howHeard}}</td>
+        </tr>
+      </table>
+
+      <h3>Message:</h3>
+      <div class="message-box">{{message}}</div>
+
+      <p style="text-align: center">
+        <a href="https://admin.accianng.com/contacts/{{id}}" class="button"
+          >View in Admin Panel</a
+        >
+      </p>
+    </div>
+  </body>
+</html>
