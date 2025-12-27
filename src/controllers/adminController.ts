@@ -120,6 +120,7 @@ export const createAdmin = async (
     next(error as Error);
   }
 };
+
 // ========================
 // Admin Login
 // ========================
