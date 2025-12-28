@@ -3,10 +3,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.runMigrations = runMigrations;
 const database_1 = require("../config/database");
 async function runMigrations() {
-  try {
-    console.log("🔄 Running database migrations...");
-    // Create contacts table
-    await (0, database_1.query)(`
+    try {
+        console.log("🔄 Running database migrations...");
+        // Create contacts table
+        await (0, database_1.query)(`
       CREATE TABLE IF NOT EXISTS contacts (
         id SERIAL PRIMARY KEY,
         reference_number VARCHAR(50) UNIQUE,
@@ -26,9 +26,9 @@ async function runMigrations() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    console.log("✅ Contacts table created/verified");
-    // Create projects table
-    await (0, database_1.query)(`
+        console.log("✅ Contacts table created/verified");
+        // Create projects table
+        await (0, database_1.query)(`
       CREATE TABLE IF NOT EXISTS projects (
         id SERIAL PRIMARY KEY,
         title VARCHAR(255) NOT NULL,
@@ -52,9 +52,9 @@ async function runMigrations() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    console.log("✅ Projects table created/verified");
-    // Create services table
-    await (0, database_1.query)(`
+        console.log("✅ Projects table created/verified");
+        // Create services table
+        await (0, database_1.query)(`
       CREATE TABLE IF NOT EXISTS services (
         id SERIAL PRIMARY KEY,
         title VARCHAR(255) NOT NULL,
@@ -72,9 +72,9 @@ async function runMigrations() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    console.log("✅ Services table created/verified");
-    // Create testimonials table
-    await (0, database_1.query)(`
+        console.log("✅ Services table created/verified");
+        // Create testimonials table
+        await (0, database_1.query)(`
       CREATE TABLE IF NOT EXISTS testimonials (
         id SERIAL PRIMARY KEY,
         client_name VARCHAR(255) NOT NULL,
@@ -89,9 +89,9 @@ async function runMigrations() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    console.log("✅ Testimonials table created/verified");
-    // Create admin_users table
-    await (0, database_1.query)(`
+        console.log("✅ Testimonials table created/verified");
+        // Create admin_users table
+        await (0, database_1.query)(`
       CREATE TABLE IF NOT EXISTS admin_users (
         id SERIAL PRIMARY KEY,
         username VARCHAR(100) UNIQUE NOT NULL,
@@ -104,9 +104,9 @@ async function runMigrations() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    console.log("✅ Admin users table created/verified");
-    // Create email_logs table
-    await (0, database_1.query)(`
+        console.log("✅ Admin users table created/verified");
+        // Create email_logs table
+        await (0, database_1.query)(`
       CREATE TABLE IF NOT EXISTS email_logs (
         id SERIAL PRIMARY KEY,
         email_type VARCHAR(50) NOT NULL,
@@ -119,69 +119,44 @@ async function runMigrations() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    console.log("✅ Email logs table created/verified");
-    // Create indexes
-    await (0, database_1.query)(
-      `CREATE INDEX IF NOT EXISTS idx_contacts_email ON contacts(email)`
-    );
-    await (0, database_1.query)(
-      `CREATE INDEX IF NOT EXISTS idx_contacts_status ON contacts(status)`
-    );
-    await (0, database_1.query)(
-      `CREATE INDEX IF NOT EXISTS idx_contacts_created ON contacts(created_at)`
-    );
-    await (0, database_1.query)(
-      `CREATE INDEX IF NOT EXISTS idx_projects_slug ON projects(slug)`
-    );
-    await (0, database_1.query)(
-      `CREATE INDEX IF NOT EXISTS idx_projects_featured ON projects(featured)`
-    );
-    await (0, database_1.query)(
-      `CREATE INDEX IF NOT EXISTS idx_services_slug ON services(slug)`
-    );
-    await (0, database_1.query)(
-      `CREATE INDEX IF NOT EXISTS idx_testimonials_featured ON testimonials(featured)`
-    );
-    await (0, database_1.query)(
-      `CREATE INDEX IF NOT EXISTS idx_admin_email ON admin_users(email)`
-    );
-    await (0, database_1.query)(
-      `CREATE INDEX IF NOT EXISTS idx_email_logs_type ON email_logs(email_type)`
-    );
-    await (0, database_1.query)(
-      `CREATE INDEX IF NOT EXISTS idx_email_logs_status ON email_logs(status)`
-    );
-    console.log("✅ Indexes created/verified");
-    // ============================================
-    // SEED DATA
-    // ============================================
-    // Seed testimonials
-    console.log("📝 Checking testimonials data...");
-    const testimonialsCount = await (0, database_1.query)(
-      `SELECT COUNT(*) FROM testimonials`
-    );
-    if (parseInt(testimonialsCount.rows[0].count) === 0) {
-      console.log("📝 Seeding testimonials data...");
-      await (0, database_1.query)(`
+        console.log("✅ Email logs table created/verified");
+        // Create indexes
+        await (0, database_1.query)(`CREATE INDEX IF NOT EXISTS idx_contacts_email ON contacts(email)`);
+        await (0, database_1.query)(`CREATE INDEX IF NOT EXISTS idx_contacts_status ON contacts(status)`);
+        await (0, database_1.query)(`CREATE INDEX IF NOT EXISTS idx_contacts_created ON contacts(created_at)`);
+        await (0, database_1.query)(`CREATE INDEX IF NOT EXISTS idx_projects_slug ON projects(slug)`);
+        await (0, database_1.query)(`CREATE INDEX IF NOT EXISTS idx_projects_featured ON projects(featured)`);
+        await (0, database_1.query)(`CREATE INDEX IF NOT EXISTS idx_services_slug ON services(slug)`);
+        await (0, database_1.query)(`CREATE INDEX IF NOT EXISTS idx_testimonials_featured ON testimonials(featured)`);
+        await (0, database_1.query)(`CREATE INDEX IF NOT EXISTS idx_admin_email ON admin_users(email)`);
+        await (0, database_1.query)(`CREATE INDEX IF NOT EXISTS idx_email_logs_type ON email_logs(email_type)`);
+        await (0, database_1.query)(`CREATE INDEX IF NOT EXISTS idx_email_logs_status ON email_logs(status)`);
+        console.log("✅ Indexes created/verified");
+        // ============================================
+        // SEED DATA
+        // ============================================
+        // Seed testimonials
+        console.log("📝 Checking testimonials data...");
+        const testimonialsCount = await (0, database_1.query)(`SELECT COUNT(*) FROM testimonials`);
+        if (parseInt(testimonialsCount.rows[0].count) === 0) {
+            console.log("📝 Seeding testimonials data...");
+            await (0, database_1.query)(`
         INSERT INTO testimonials (client_name, client_position, client_company, testimonial_text, rating, featured, published) VALUES
         ('Adebayo Johnson', 'CTO', 'TechVenture Nigeria', 'ACCIAN''s technical expertise and professionalism are unmatched. They delivered our complex enterprise system on time and within budget, exceeding all our expectations.', 5, true, true),
         ('Oluwaseun Adeyemi', 'Managing Director', 'Enterprise Solutions Group', 'ACCIAN doesn''t just build software—they solve business problems. Their strategic approach and technical execution helped us streamline operations and grow revenue.', 5, false, true),
         ('Chioma Okafor', 'IT Director', 'Financial Solutions Ltd', 'The cybersecurity audit conducted by ACCIAN was thorough and eye-opening. Their recommendations significantly strengthened our security posture and helped us achieve compliance certification.', 5, true, true)
       `);
-      console.log("✅ Testimonials seeded: 3 records");
-    } else {
-      console.log(
-        `ℹ️  Testimonials already exist: ${testimonialsCount.rows[0].count} records`
-      );
-    }
-    // Seed services
-    console.log("📝 Checking services data...");
-    const servicesCount = await (0, database_1.query)(
-      `SELECT COUNT(*) FROM services`
-    );
-    if (parseInt(servicesCount.rows[0].count) === 0) {
-      console.log("📝 Seeding services data...");
-      await (0, database_1.query)(`
+            console.log("✅ Testimonials seeded: 3 records");
+        }
+        else {
+            console.log(`ℹ️  Testimonials already exist: ${testimonialsCount.rows[0].count} records`);
+        }
+        // Seed services
+        console.log("📝 Checking services data...");
+        const servicesCount = await (0, database_1.query)(`SELECT COUNT(*) FROM services`);
+        if (parseInt(servicesCount.rows[0].count) === 0) {
+            console.log("📝 Seeding services data...");
+            await (0, database_1.query)(`
         INSERT INTO services (title, slug, icon, short_description, full_description, features, published) VALUES
 ('IT Consulting & Advisory', 'it-consulting-advisory', 'Lightbulb', 
  'Strategic technology guidance to support growth and efficiency.', 
@@ -211,20 +186,20 @@ async function runMigrations() {
  'Advanced data science solutions for informed decision making.',
  'Advanced data science solutions including machine learning modelling, financial risk analysis, and predictive analytics.',
  ARRAY['Machine Learning Modelling', 'Financial Risk Modelling', 'Predictive Analytics', 'Big Data Analytics'],
- true);
+ true)
 
       `);
-      console.log("✅ Services seeded: 5 records");
-    } else {
-      console.log(
-        `ℹ️  Services already exist: ${servicesCount.rows[0].count} records`
-      );
+            console.log("✅ Services seeded: 5 records");
+        }
+        else {
+            console.log(`ℹ️  Services already exist: ${servicesCount.rows[0].count} records`);
+        }
+        console.log("✅ All migrations and seeding completed successfully");
     }
-    console.log("✅ All migrations and seeding completed successfully");
-  } catch (error) {
-    console.error("❌ Migration error:", error);
-    if (error instanceof Error) {
-      console.error("Details:", error.message);
+    catch (error) {
+        console.error("❌ Migration error:", error);
+        if (error instanceof Error) {
+            console.error("Details:", error.message);
+        }
     }
-  }
 }
