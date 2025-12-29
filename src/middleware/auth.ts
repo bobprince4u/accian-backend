@@ -19,46 +19,42 @@ export const authenticateToken = (
   res: Response,
   next: NextFunction
 ) => {
-  const authHeader = req.headers["authorization"];
-  const token = authHeader?.split(" ")[1]; // Bearer <token>
+  const authHeader = req.headers.authorization;
 
-  if (!token) {
-    return res.status(401).json({
-      success: false,
-      message: "Access token required",
-    });
+  if (!authHeader?.startsWith("Bearer ")) {
+    return res.status(401).json({ message: "Unauthorized" });
   }
 
+  const token = authHeader?.split(" ")[1]; // Bearer <token>
+
   try {
-    const secret = process.env.JWT_SECRET as string;
-    const decoded = jwt.verify(token, secret) as JwtPayload;
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET as string
+    ) as Partial<UserPayload>;
 
-    // Map to UserPayload type
-    req.user = {
-      id: decoded.id as string,
-      email: decoded.email as string,
-      role: decoded.role as string,
-    };
+    if (!decoded.id || !decoded.email || decoded.role !== "admin") {
+      return res.status(403).json({ message: "Invalid token payload" });
+    }
 
+    req.user = decoded as UserPayload;
     next();
-  } catch (err) {
-    return res.status(403).json({
-      success: false,
-      message: "Invalid or expired token",
-    });
+  } catch {
+    return res.status(403).json({ message: "Invalid token" });
   }
 };
 
-export const generateToken = (user: UserPayload): string => {
-  const secret = process.env.JWT_SECRET as string;
+export const requireAdmin = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  if (req.user?.role !== "admin") {
+    return res.status(403).json({ message: "Admin only" });
+  }
+  next();
+};
 
-  return jwt.sign(
-    {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-    },
-    secret,
-    { expiresIn: "24h" }
-  );
+export const generateToken = (user: UserPayload): string => {
+  return jwt.sign(user, process.env.JWT_SECRET as string, { expiresIn: "10h" });
 };

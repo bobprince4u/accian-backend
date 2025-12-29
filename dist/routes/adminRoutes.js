@@ -58,7 +58,7 @@ router.post("/create", rateLimiter.adminSignup, adminController.createAdmin);
  */
 router.post("/login", rateLimiter.adminLogin, validation_1.validateLogin, adminController_1.login);
 // Protected routes (require authentication)
-router.use(auth_1.authenticateToken);
+router.use(auth_1.authenticateToken, auth_1.requireAdmin);
 /**
  * @route   GET /api/admin/contacts
  * @desc    Get all contact submissions

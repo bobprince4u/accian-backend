@@ -1,3 +1,4 @@
+import fetch from "node-fetch";
 import { Request, Response, NextFunction } from "express";
 import { query } from "../config/database";
 import * as emailService from "../services/emailServices";
@@ -12,6 +13,16 @@ interface ContactFormBody {
   projectTimeline?: string;
   message: string;
   howHeard?: string;
+  recaptchaToken: string;
+}
+
+interface RecaptchaResponse {
+  success: boolean;
+  score?: number;
+  action?: string;
+  challenge_ts?: string;
+  hostname?: string;
+  "error-codes"?: string[];
 }
 
 export const submitContactForm = async (
@@ -20,6 +31,30 @@ export const submitContactForm = async (
   next: NextFunction
 ): Promise<void> => {
   try {
+    const { recaptchaToken } = req.body;
+
+    if (!recaptchaToken) {
+      res
+        .status(400)
+        .json({ success: false, message: "reCAPTCHA token missing" });
+      return;
+    }
+
+    // Verify with Google
+    const secret = process.env.RECAPTCHA_SECRET_KEY!;
+    const verificationURL = `https://www.google.com/recaptcha/api/siteverify?secret=${secret}&response=${recaptchaToken}`;
+
+    const response = await fetch(verificationURL, { method: "POST" });
+    const data = (await response.json()) as RecaptchaResponse;
+
+    if (!data.success) {
+      res
+        .status(400)
+        .json({ success: false, message: "Failed reCAPTCHA verification" });
+      return;
+    }
+
+    // Extract form fields
     const {
       fullName,
       companyName,
@@ -41,11 +76,11 @@ export const submitContactForm = async (
     // Store contact
     const result = await query(
       `INSERT INTO contacts (
-                full_name, company_name, email, phone, 
-                service_interest, project_budget, project_timeline, 
-                message, how_heard, ip_address, user_agent, status
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-            RETURNING id, created_at`,
+        full_name, company_name, email, phone, 
+        service_interest, project_budget, project_timeline, 
+        message, how_heard, ip_address, user_agent, status
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      RETURNING id, created_at`,
       [
         fullName,
         companyName || null,
@@ -77,7 +112,7 @@ export const submitContactForm = async (
       `✅ Contact saved with ID: ${contactId}, Reference: ${referenceNumber}`
     );
 
-    // --- Send emails asynchronously (non-blocking) ---
+    // Send emails asynchronously
     emailService
       .sendUserConfirmation({
         to: email,
@@ -85,13 +120,7 @@ export const submitContactForm = async (
         serviceInterest,
         referenceNumber,
       })
-      .catch((err: unknown) => {
-        if (err instanceof Error) {
-          console.error("Email sending error (user):", err.message);
-        } else {
-          console.error("Email sending error (user):", err);
-        }
-      });
+      .catch((err) => console.error("Email sending error (user):", err));
 
     emailService
       .sendAdminNotification({
@@ -107,23 +136,14 @@ export const submitContactForm = async (
         referenceNumber,
         timestamp: result.rows[0].created_at,
       })
-      .catch((err: unknown) => {
-        if (err instanceof Error) {
-          console.error("Email sending error (admin):", err.message);
-        } else {
-          console.error("Email sending error (admin):", err);
-        }
-      });
+      .catch((err) => console.error("Email sending error (admin):", err));
 
     // Final API response
     res.status(201).json({
       success: true,
       message:
         "Thank you for contacting us! We'll be in touch within 24 hours.",
-      data: {
-        id: contactId,
-        referenceNumber,
-      },
+      data: { id: contactId, referenceNumber },
     });
   } catch (error: unknown) {
     console.error("❌ Contact form submission error:", error);
@@ -131,6 +151,4 @@ export const submitContactForm = async (
   }
 };
 
-export default {
-  submitContactForm,
-};
+export default { submitContactForm };

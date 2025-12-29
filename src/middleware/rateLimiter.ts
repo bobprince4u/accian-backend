@@ -16,7 +16,7 @@ export const general: RateLimitRequestHandler = rateLimit({
 
 // Contact Form Specific Rate Limiter
 export const contactForm: RateLimitRequestHandler = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
+  windowMs: 15 * 60 * 1000, // 1 hour
   max: 5,
   message: {
     success: false,

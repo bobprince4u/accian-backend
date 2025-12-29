@@ -18,7 +18,7 @@ exports.general = (0, express_rate_limit_1.default)({
 });
 // Contact Form Specific Rate Limiter
 exports.contactForm = (0, express_rate_limit_1.default)({
-    windowMs: 60 * 60 * 1000, // 1 hour
+    windowMs: 15 * 60 * 1000, // 1 hour
     max: 5,
     message: {
         success: false,

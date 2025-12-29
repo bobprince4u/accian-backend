@@ -18,7 +18,7 @@ import {
   createService,
 } from "../controllers/serviceController";
 
-import { authenticateToken } from "../middleware/auth";
+import { authenticateToken, requireAdmin } from "../middleware/auth";
 import { validateLogin } from "../middleware/validation";
 import * as rateLimiter from "../middleware/rateLimiter";
 import * as adminController from "../controllers/adminController";
@@ -42,7 +42,7 @@ router.post("/create", rateLimiter.adminSignup, adminController.createAdmin);
 router.post("/login", rateLimiter.adminLogin, validateLogin, login);
 
 // Protected routes (require authentication)
-router.use(authenticateToken);
+router.use(authenticateToken, requireAdmin);
 
 /**
  * @route   GET /api/admin/contacts
