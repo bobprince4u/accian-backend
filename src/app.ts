@@ -22,29 +22,6 @@ app.set("trust proxy", 1);
 app.use(helmet());
 
 //CORS configuration
-{
-  /* const corsOptions: CorsOptions = {
-  origin:
-    process.env.NODE_ENV === "production"
-      ? [
-          "https://accian.co.uk",
-          "https://www.accian.co.uk",
-          "https://accian.co.uk/admin",
-        ]
-      : [
-          "http://localhost:5173",
-          "http://localhost:5174", // <-- ADD THIS LINE
-          "http://localhost:2025",
-          "http://localhost:2024",
-          "http://localhost:2023",
-        ],
-  credentials: true,
-  optionsSuccessStatus: 200,
-};
-app.use(cors(corsOptions)); */
-}
-
-//CORS configuration
 const allowedOrigins = process.env.FRONTEND_URL
   ? process.env.FRONTEND_URL.split(",")
   : process.env.NODE_ENV === "production"
@@ -76,7 +53,12 @@ const corsOptions: CorsOptions = {
   credentials: true,
   optionsSuccessStatus: 200,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "x-security-token",
+    "x-timestamp",
+  ],
 };
 
 app.use("/", cors(corsOptions));
