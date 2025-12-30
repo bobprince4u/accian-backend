@@ -4,10 +4,12 @@
   "description": "ACCIAN Limited - Backend API",
   "main": "dist/server.js",
   "scripts": {
-    "start": "node dist/server.js",
+    "start": "npm run migrate && node dist/server.js",
     "dev": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' server.ts",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "tsc && cp -r src/templates dist/templates"
+    "test": "npm run migrate &&echo \"Error: no test specified\" && exit 1",
+    "build": "tsc && cp -r src/templates dist/templates",
+    "migrate": "ts-node src/migrations/run.ts",
+    "migrate:down": "ts-node -e \"require('./src/migrations/001_add_security_fields').down().then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1); })\""
   },
   "keywords": [
     "api",
