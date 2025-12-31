@@ -764,10 +764,10 @@ export const getTestimonials = async (
     // -----------------------------
     const normalizeTestimonial = (row: any) => ({
       id: String(row.id),
-      name: row.full_name || "Anonymous",
-      position: row.position || "",
-      company: row.company_name || "",
-      message: row.message || "",
+      name: row.name || "Anonymous", // use `name`
+      position: row.position || "", // use `position`
+      company: row.company || "", // use `company`
+      message: row.testimonial_message || "", // use your message column
       rating: Number(row.rating ?? 5),
       featured: Boolean(row.featured),
       image: row.image_url || null,
@@ -777,8 +777,8 @@ export const getTestimonials = async (
         slug: row.project_slug || "",
       },
     });
-
     const testimonials = result.rows.map(normalizeTestimonial);
+    console.log("First testimonial row:", result.rows[0]);
 
     // Get total count
     const countResult = await query("SELECT COUNT(*) FROM testimonials");
@@ -786,7 +786,7 @@ export const getTestimonials = async (
 
     res.json({
       success: true,
-      data: result.rows,
+      data: result.rows.map(normalizeTestimonial),
       pagination: {
         total,
         page: pageNum,
