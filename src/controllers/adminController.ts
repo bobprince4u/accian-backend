@@ -1,7 +1,9 @@
 import { Request, Response, NextFunction } from "express";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import { generateToken } from "../middleware/auth";
 import { query } from "../config/database";
+import { generateRefreshToken, generateAccessToken } from "../utils/token";
 
 // ========================
 // Types
@@ -55,7 +57,6 @@ interface Project {
   published: boolean;
   updated_at: Date;
 }
-
 // ========================
 // Admin Signup / Create Account
 // ========================
@@ -70,54 +71,86 @@ export const createAdmin = async (
     if (!email || !password || !fullName || !role || !username) {
       return res.status(400).json({
         success: false,
-        message: "Missing required fields: email, password, fullName, role",
+        message: "Missing required fields",
       });
     }
 
-    // Check if user already exists
+    // 🚨 BLOCK SIGNUP IF ADMIN ALREADY EXISTS
+    const adminCount = await query("SELECT COUNT(*) FROM admin_users");
+
+    if (Number(adminCount.rows[0].count) > 0) {
+      return res.status(403).json({
+        success: false,
+        message: "Admin signup is disabled",
+      });
+    }
+
+    // Check for duplicates
     const existingUser = await query(
-      "SELECT * FROM admin_users WHERE email = $1 OR username = $2",
+      "SELECT id FROM admin_users WHERE email = $1 OR username = $2",
       [email, username]
     );
 
     if (existingUser.rows.length > 0) {
       return res.status(409).json({
         success: false,
-        message: "Admin user with this email already exists",
+        message: "Admin user already exists",
       });
     }
 
-    // Hash the password
-    const saltRounds = 10;
-    const passwordHash = await bcrypt.hash(password, saltRounds);
+    // Hash password
+    const passwordHash = await bcrypt.hash(password, 10);
 
-    // Insert new admin user
+    // Create admin
     const result = await query(
-      `INSERT INTO admin_users (email, password_hash, full_name, role, username, active, created_at)
+      `INSERT INTO admin_users 
+       (email, password_hash, full_name, role, username, active, created_at)
        VALUES ($1, $2, $3, $4, $5, true, NOW())
        RETURNING id, email, full_name, role, username`,
       [email, passwordHash, fullName, role, username]
     );
 
-    const newUser: AdminUser = result.rows[0];
-
     return res.status(201).json({
       success: true,
       message: "Admin account created successfully",
-      data: {
-        id: newUser.id,
-        email: newUser.email,
-        fullName: newUser.full_name,
-        role: newUser.role,
-        username: newUser.username,
-      },
+      data: result.rows[0],
     });
-  } catch (error: unknown) {
-    console.error(
-      "❌ Create admin error:",
-      error instanceof Error ? error.message : String(error)
-    );
+  } catch (error) {
+    console.error("❌ Create admin error:", error);
     next(error as Error);
+  }
+};
+
+// ========================
+// Refresh Token
+// ========================
+export const refreshToken = async (req: Request, res: Response) => {
+  const { refreshToken } = req.body;
+
+  if (!refreshToken)
+    return res.status(401).json({ message: "Missing refresh token" });
+
+  const stored = await query(
+    "SELECT * FROM refresh_tokens WHERE token = $1 AND revoked = false",
+    [refreshToken]
+  );
+
+  if (!stored.rows.length)
+    return res.status(403).json({ message: "Invalid refresh token" });
+
+  try {
+    const decoded: any = jwt.verify(
+      refreshToken,
+      process.env.JWT_REFRESH_SECRET!
+    );
+
+    const newAccessToken = generateAccessToken({
+      id: decoded.id,
+    });
+
+    res.json({ accessToken: newAccessToken });
+  } catch {
+    return res.status(403).json({ message: "Expired refresh token" });
   }
 };
 
@@ -130,77 +163,64 @@ export const login = async (
   next: NextFunction
 ) => {
   try {
-    // --- DEBUGGING STEP 1: Check the entire incoming request body ---
-    console.log("🔐 [DEBUG] Full incoming request body:", req.body);
-
     const { email, password } = req.body;
 
     // This check is important if the body is empty or missing fields
     if (!email || !password) {
-      console.log(
-        "❌ [DEBUG] Login failed: Email or password is missing from the request body."
-      );
       return res.status(400).json({
         success: false,
         message: "Email and password are required",
       });
     }
 
-    console.log(`🔍 [DEBUG] Searching for user with email: "${email}"`);
+    const normalizedEmail = email.toLowerCase().trim();
 
     const result = await query(
       "SELECT * FROM admin_users WHERE email = $1 AND active = true",
-      [email]
+      [normalizedEmail]
     );
 
-    // --- DEBUGGING STEP 2: Check the result of the database query ---
-    console.log("🔍 [DEBUG] Database query result:", result.rows);
-
     if (result.rows.length === 0) {
-      console.log(
-        "❌ [DEBUG] Login failed: User not found in the database or is inactive."
-      );
       return res.status(401).json({
         success: false,
         message: "Invalid credentials",
       });
     }
 
-    const user = result.rows[0] as AdminUser;
-    console.log(`✅ [DEBUG] User found in database: ${user.email}`);
+    const user = result.rows[0];
 
     const validPassword = await bcrypt.compare(password, user.password_hash);
 
-    // --- DEBUGGING STEP 3: Check the password comparison ---
-    console.log(
-      `🔐 [DEBUG] Password comparison result for ${user.email}:`,
-      validPassword
-    );
-
     if (!validPassword) {
-      console.log(
-        "❌ [DEBUG] Login failed: Password does not match the hash in the database."
-      );
       return res.status(401).json({
         success: false,
         message: "Invalid credentials",
       });
     }
 
-    await query("UPDATE admin_users SET last_login = $1 WHERE id = $2", [
-      new Date(),
+    // Update last login timestamp
+    await query("UPDATE admin_users SET last_login = NOW() WHERE id = $1", [
       user.id,
     ]);
 
     // Create user payload that matches UserPayload interface
     const userPayload: UserPayload = {
-      id: user.id.toString(), // Convert number to string
+      id: user.id.toString(),
       email: user.email,
       fullName: user.full_name,
       role: user.role,
     };
 
-    const token = generateToken(userPayload);
+    // Generate tokens
+    const accessToken = generateAccessToken(userPayload); // short-lived token
+    const refreshToken = generateRefreshToken({ id: user.id }); // long-lived token
+
+    // Store refresh token in DB
+    await query(
+      `INSERT INTO refresh_tokens (user_id, token, expires_at)
+       VALUES ($1, $2, NOW() + INTERVAL '7 days')`,
+      [user.id, refreshToken]
+    );
 
     console.log(
       "✅ [DEBUG] Login successful! Token generated for user:",
@@ -211,7 +231,8 @@ export const login = async (
       success: true,
       message: "Login successful",
       data: {
-        token,
+        accessToken,
+        refreshToken,
         user: userPayload,
       },
     });
@@ -241,6 +262,21 @@ const normalizeStatus = (status?: string) => {
       return "New";
   }
 };
+
+// Logout - invalidate refresh token
+export const logout = async (req: Request, res: Response) => {
+  const { refreshToken } = req.body;
+
+  if (!refreshToken)
+    return res.status(400).json({ message: "Missing refresh token" });
+
+  await query("UPDATE refresh_tokens SET revoked = true WHERE token = $1", [
+    refreshToken,
+  ]);
+
+  res.json({ success: true, message: "Logged out successfully" });
+};
+
 /// ========================
 // Get All Contacts
 // ========================

@@ -3,10 +3,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getTestimonials = exports.getServices = exports.deleteProject = exports.getProjects = exports.updateProject = exports.createProject = exports.getDashboardStats = exports.deleteContact = exports.updateContactStatus = exports.getContactById = exports.getContacts = exports.login = exports.createAdmin = void 0;
+exports.getTestimonials = exports.getServices = exports.deleteProject = exports.getProjects = exports.updateProject = exports.createProject = exports.getDashboardStats = exports.deleteContact = exports.updateContactStatus = exports.getContactById = exports.getContacts = exports.logout = exports.login = exports.refreshToken = exports.createAdmin = void 0;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
-const auth_1 = require("../middleware/auth");
+const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const database_1 = require("../config/database");
+const token_1 = require("../utils/token");
 // ========================
 // Admin Signup / Create Account
 // ========================
@@ -16,100 +17,119 @@ const createAdmin = async (req, res, next) => {
         if (!email || !password || !fullName || !role || !username) {
             return res.status(400).json({
                 success: false,
-                message: "Missing required fields: email, password, fullName, role",
+                message: "Missing required fields",
             });
         }
-        // Check if user already exists
-        const existingUser = await (0, database_1.query)("SELECT * FROM admin_users WHERE email = $1 OR username = $2", [email, username]);
+        // 🚨 BLOCK SIGNUP IF ADMIN ALREADY EXISTS
+        const adminCount = await (0, database_1.query)("SELECT COUNT(*) FROM admin_users");
+        if (Number(adminCount.rows[0].count) > 0) {
+            return res.status(403).json({
+                success: false,
+                message: "Admin signup is disabled",
+            });
+        }
+        // Check for duplicates
+        const existingUser = await (0, database_1.query)("SELECT id FROM admin_users WHERE email = $1 OR username = $2", [email, username]);
         if (existingUser.rows.length > 0) {
             return res.status(409).json({
                 success: false,
-                message: "Admin user with this email already exists",
+                message: "Admin user already exists",
             });
         }
-        // Hash the password
-        const saltRounds = 10;
-        const passwordHash = await bcryptjs_1.default.hash(password, saltRounds);
-        // Insert new admin user
-        const result = await (0, database_1.query)(`INSERT INTO admin_users (email, password_hash, full_name, role, username, active, created_at)
+        // Hash password
+        const passwordHash = await bcryptjs_1.default.hash(password, 10);
+        // Create admin
+        const result = await (0, database_1.query)(`INSERT INTO admin_users 
+       (email, password_hash, full_name, role, username, active, created_at)
        VALUES ($1, $2, $3, $4, $5, true, NOW())
        RETURNING id, email, full_name, role, username`, [email, passwordHash, fullName, role, username]);
-        const newUser = result.rows[0];
         return res.status(201).json({
             success: true,
             message: "Admin account created successfully",
-            data: {
-                id: newUser.id,
-                email: newUser.email,
-                fullName: newUser.full_name,
-                role: newUser.role,
-                username: newUser.username,
-            },
+            data: result.rows[0],
         });
     }
     catch (error) {
-        console.error("❌ Create admin error:", error instanceof Error ? error.message : String(error));
+        console.error("❌ Create admin error:", error);
         next(error);
     }
 };
 exports.createAdmin = createAdmin;
 // ========================
+// Refresh Token
+// ========================
+const refreshToken = async (req, res) => {
+    const { refreshToken } = req.body;
+    if (!refreshToken)
+        return res.status(401).json({ message: "Missing refresh token" });
+    const stored = await (0, database_1.query)("SELECT * FROM refresh_tokens WHERE token = $1 AND revoked = false", [refreshToken]);
+    if (!stored.rows.length)
+        return res.status(403).json({ message: "Invalid refresh token" });
+    try {
+        const decoded = jsonwebtoken_1.default.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+        const newAccessToken = (0, token_1.generateAccessToken)({
+            id: decoded.id,
+        });
+        res.json({ accessToken: newAccessToken });
+    }
+    catch {
+        return res.status(403).json({ message: "Expired refresh token" });
+    }
+};
+exports.refreshToken = refreshToken;
+// ========================
 // Admin Login
 // ========================
 const login = async (req, res, next) => {
     try {
-        // --- DEBUGGING STEP 1: Check the entire incoming request body ---
-        console.log("🔐 [DEBUG] Full incoming request body:", req.body);
         const { email, password } = req.body;
         // This check is important if the body is empty or missing fields
         if (!email || !password) {
-            console.log("❌ [DEBUG] Login failed: Email or password is missing from the request body.");
             return res.status(400).json({
                 success: false,
                 message: "Email and password are required",
             });
         }
-        console.log(`🔍 [DEBUG] Searching for user with email: "${email}"`);
-        const result = await (0, database_1.query)("SELECT * FROM admin_users WHERE email = $1 AND active = true", [email]);
-        // --- DEBUGGING STEP 2: Check the result of the database query ---
-        console.log("🔍 [DEBUG] Database query result:", result.rows);
+        const normalizedEmail = email.toLowerCase().trim();
+        const result = await (0, database_1.query)("SELECT * FROM admin_users WHERE email = $1 AND active = true", [normalizedEmail]);
         if (result.rows.length === 0) {
-            console.log("❌ [DEBUG] Login failed: User not found in the database or is inactive.");
             return res.status(401).json({
                 success: false,
                 message: "Invalid credentials",
             });
         }
         const user = result.rows[0];
-        console.log(`✅ [DEBUG] User found in database: ${user.email}`);
         const validPassword = await bcryptjs_1.default.compare(password, user.password_hash);
-        // --- DEBUGGING STEP 3: Check the password comparison ---
-        console.log(`🔐 [DEBUG] Password comparison result for ${user.email}:`, validPassword);
         if (!validPassword) {
-            console.log("❌ [DEBUG] Login failed: Password does not match the hash in the database.");
             return res.status(401).json({
                 success: false,
                 message: "Invalid credentials",
             });
         }
-        await (0, database_1.query)("UPDATE admin_users SET last_login = $1 WHERE id = $2", [
-            new Date(),
+        // Update last login timestamp
+        await (0, database_1.query)("UPDATE admin_users SET last_login = NOW() WHERE id = $1", [
             user.id,
         ]);
         // Create user payload that matches UserPayload interface
         const userPayload = {
-            id: user.id.toString(), // Convert number to string
+            id: user.id.toString(),
             email: user.email,
             fullName: user.full_name,
             role: user.role,
         };
-        const token = (0, auth_1.generateToken)(userPayload);
+        // Generate tokens
+        const accessToken = (0, token_1.generateAccessToken)(userPayload); // short-lived token
+        const refreshToken = (0, token_1.generateRefreshToken)({ id: user.id }); // long-lived token
+        // Store refresh token in DB
+        await (0, database_1.query)(`INSERT INTO refresh_tokens (user_id, token, expires_at)
+       VALUES ($1, $2, NOW() + INTERVAL '7 days')`, [user.id, refreshToken]);
         console.log("✅ [DEBUG] Login successful! Token generated for user:", userPayload.email);
         return res.json({
             success: true,
             message: "Login successful",
             data: {
-                token,
+                accessToken,
+                refreshToken,
                 user: userPayload,
             },
         });
@@ -120,6 +140,34 @@ const login = async (req, res, next) => {
     }
 };
 exports.login = login;
+// ✅ DEFINE FIRST
+const normalizeStatus = (status) => {
+    switch (status) {
+        case "new":
+            return "New";
+        case "contacted":
+            return "Contacted";
+        case "in_progress":
+            return "In Progress";
+        case "converted":
+            return "Converted";
+        case "closed":
+            return "Closed";
+        default:
+            return "New";
+    }
+};
+// Logout - invalidate refresh token
+const logout = async (req, res) => {
+    const { refreshToken } = req.body;
+    if (!refreshToken)
+        return res.status(400).json({ message: "Missing refresh token" });
+    await (0, database_1.query)("UPDATE refresh_tokens SET revoked = true WHERE token = $1", [
+        refreshToken,
+    ]);
+    res.json({ success: true, message: "Logged out successfully" });
+};
+exports.logout = logout;
 /// ========================
 // Get All Contacts
 // ========================
@@ -130,24 +178,16 @@ const getContacts = async (req, res, next) => {
         // MAP snake_case to camelCase
         const contacts = result.rows.map((row) => ({
             id: row.id,
-            fullName: row.full_name, // full_name → fullName
+            fullName: row.full_name,
             email: row.email,
-            company: row.company_name || "", // company_name → company ✅
+            company: row.company_name || "",
             phone: row.phone || "",
-            service: row.service_interest || "", // service_interest → service ✅
+            service: row.service_interest || "",
             budget: row.project_budget || "",
             timeline: row.project_timeline || "",
             message: row.message || "",
             hearAbout: row.how_heard || "",
-            status: row.status === "new"
-                ? "New"
-                : row.status === "contacted"
-                    ? "Contacted"
-                    : row.status === "in-progress"
-                        ? "In Progress"
-                        : row.status === "converted"
-                            ? "Converted"
-                            : "Closed",
+            status: normalizeStatus(row.status),
             createdAt: row.created_at,
             lastUpdated: row.updated_at || row.created_at,
         }));
@@ -497,12 +537,32 @@ const getTestimonials = async (req, res, next) => {
        LEFT JOIN projects p ON t.project_id = p.id
        ORDER BY t.created_at DESC
        LIMIT $1 OFFSET $2`, [limitNum, offset]);
+        // -----------------------------
+        // Add normalization step
+        // -----------------------------
+        const normalizeTestimonial = (row) => ({
+            id: String(row.id), // or row.id if already string
+            name: row.client_name || "Anonymous",
+            position: row.client_position || "",
+            company: row.client_company || "",
+            message: row.testimonial_text || "",
+            rating: Number(row.rating ?? 5),
+            featured: Boolean(row.featured),
+            image: row.image_url || null,
+            createdAt: row.created_at,
+            project: {
+                id: row.project_id,
+                // optional: you can also join projects to get title/slug
+            },
+        });
+        const testimonials = result.rows.map(normalizeTestimonial);
+        console.log("First testimonial row:", result.rows[0]);
         // Get total count
         const countResult = await (0, database_1.query)("SELECT COUNT(*) FROM testimonials");
         const total = parseInt(countResult.rows[0].count);
         res.json({
             success: true,
-            data: result.rows,
+            data: result.rows.map(normalizeTestimonial),
             pagination: {
                 total,
                 page: pageNum,

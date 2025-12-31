@@ -24,6 +24,7 @@ import * as rateLimiter from "../middleware/rateLimiter";
 import * as adminController from "../controllers/adminController";
 import * as serviceController from "../controllers/serviceController";
 import * as testimonialController from "../controllers/testimonialController";
+import { auditLog } from "../middleware/audit";
 
 const router: Router = express.Router();
 
@@ -85,7 +86,7 @@ router.get("/dashboard/stats", getDashboardStats);
  * @access  Private (Admin)
  */
 
-router.post("/projects", createProject);
+router.post("/projects", auditLog("Created a new project"), createProject);
 
 /**
  * @route   GET /api/admin/projects
@@ -99,14 +100,14 @@ router.get("/projects", getProjects);
  * @desc    Update project
  * @access  Private (Admin)
  */
-router.put("/projects/:id", updateProject);
+router.put("/projects/:id", auditLog("Updated a project"), updateProject);
 
 /**
  * @route   DELETE /api/admin/projects/:id
  * @desc    Delete (unpublish) project
  * @access  Private (Admin)
  */
-router.delete("/projects/:id", deleteProject);
+router.delete("/projects/:id", auditLog("Deleted a project"), deleteProject);
 
 /**
  * @route   GET /api/admin/services
@@ -120,21 +121,21 @@ router.get("/services", adminController.getServices);
  * @desc    Create new service
  * @access  Private (Admin)
  */
-router.post("/services", createService);
+router.post("/services", auditLog("Created a new service"), createService);
 
 /**
  * @route   PUT /api/admin/services/:id
  * @desc    Update service
  * @access  Private (Admin)
  */
-router.put("/services/:id", updateService);
+router.put("/services/:id", auditLog("Updated a service"), updateService);
 
 /**
  * @route   DELETE /api/admin/services/:id
  * @desc    Delete (unpublish) service
  * @access  Private (Admin)
  */
-router.delete("/services/:id", deleteService);
+router.delete("/services/:id", auditLog("Deleted a service"), deleteService);
 
 /**
  * @route   GET /api/admin/testimonials
@@ -148,20 +149,20 @@ router.get("/testimonials", getTestimonials);
  * @desc    Create new testimonial
  * @access  Private (Admin)
  */
-router.post("/testimonials", testimonialController.createTestimonial);
+router.post("/testimonials", auditLog("Created a new testimonial"), testimonialController.createTestimonial);
 
 /**
  * @route   PUT /api/admin/testimonials/:id
  * @desc    Update testimonial
  * @access  Private (Admin)
  */
-router.put("/testimonials/:id", testimonialController.updateTestimonial);
+router.put("/testimonials/:id", auditLog("Updated a testimonial"), testimonialController.updateTestimonial);
 
 /**
  * @route   DELETE /api/admin/testimonials/:id
  * @desc    Delete (unpublish) testimonial
  * @access  Private (Admin)
  */
-router.delete("/testimonials/:id", testimonialController.deleteTestimonial);
+router.delete("/testimonials/:id", auditLog("Deleted a testimonial"), testimonialController.deleteTestimonial);
 
 export default router;
