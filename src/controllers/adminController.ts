@@ -224,6 +224,23 @@ export const login = async (
   }
 };
 
+// ✅ DEFINE FIRST
+const normalizeStatus = (status?: string) => {
+  switch (status) {
+    case "new":
+      return "New";
+    case "contacted":
+      return "Contacted";
+    case "in_progress":
+      return "In Progress";
+    case "converted":
+      return "Converted";
+    case "closed":
+      return "Closed";
+    default:
+      return "New";
+  }
+};
 /// ========================
 // Get All Contacts
 // ========================
@@ -255,23 +272,6 @@ export const getContacts = async (
       createdAt: row.created_at,
       lastUpdated: row.updated_at || row.created_at,
     }));
-
-    const normalizeStatus = (status: string) => {
-      switch (status) {
-        case "new":
-          return "New";
-        case "contacted":
-          return "Contacted";
-        case "in_progress":
-          return "In Progress";
-        case "converted":
-          return "Converted";
-        case "closed":
-          return "Closed";
-        default:
-          return "New";
-      }
-    };
 
     console.log("✅ Backend mapped contact:", contacts[0]);
 
