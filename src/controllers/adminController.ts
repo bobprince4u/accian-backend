@@ -759,6 +759,27 @@ export const getTestimonials = async (
       [limitNum, offset]
     );
 
+    // -----------------------------
+    // Add normalization step
+    // -----------------------------
+    const normalizeTestimonial = (row: any) => ({
+      id: String(row.id),
+      name: row.full_name || "Anonymous",
+      position: row.position || "",
+      company: row.company_name || "",
+      message: row.message || "",
+      rating: Number(row.rating ?? 5),
+      featured: Boolean(row.featured),
+      image: row.image_url || null,
+      createdAt: row.created_at,
+      project: {
+        title: row.project_title || "",
+        slug: row.project_slug || "",
+      },
+    });
+
+    const testimonials = result.rows.map(normalizeTestimonial);
+
     // Get total count
     const countResult = await query("SELECT COUNT(*) FROM testimonials");
     const total = parseInt(countResult.rows[0].count);
