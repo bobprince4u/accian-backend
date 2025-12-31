@@ -763,20 +763,21 @@ export const getTestimonials = async (
     // Add normalization step
     // -----------------------------
     const normalizeTestimonial = (row: any) => ({
-      id: String(row.id),
-      name: row.name || "Anonymous", // use `name`
-      position: row.position || "", // use `position`
-      company: row.company || "", // use `company`
-      message: row.testimonial_message || "", // use your message column
+      id: String(row.id), // or row.id if already string
+      name: row.client_name || "Anonymous",
+      position: row.client_position || "",
+      company: row.client_company || "",
+      message: row.testimonial_text || "",
       rating: Number(row.rating ?? 5),
       featured: Boolean(row.featured),
       image: row.image_url || null,
       createdAt: row.created_at,
       project: {
-        title: row.project_title || "",
-        slug: row.project_slug || "",
+        id: row.project_id,
+        // optional: you can also join projects to get title/slug
       },
     });
+
     const testimonials = result.rows.map(normalizeTestimonial);
     console.log("First testimonial row:", result.rows[0]);
 
