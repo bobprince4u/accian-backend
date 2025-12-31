@@ -142,6 +142,7 @@ export const submitContactForm = async (
     if (!checkRateLimit(ipAddress)) {
       res.status(429).json({
         success: false,
+
         message: "Too many requests. Please try again later.",
       });
       return;

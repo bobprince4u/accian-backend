@@ -242,28 +242,36 @@ export const getContacts = async (
     // MAP snake_case to camelCase
     const contacts = result.rows.map((row) => ({
       id: row.id,
-      fullName: row.full_name, // full_name → fullName
+      fullName: row.full_name,
       email: row.email,
-      company: row.company_name || "", // company_name → company ✅
+      company: row.company_name || "",
       phone: row.phone || "",
-      service: row.service_interest || "", // service_interest → service ✅
+      service: row.service_interest || "",
       budget: row.project_budget || "",
       timeline: row.project_timeline || "",
       message: row.message || "",
       hearAbout: row.how_heard || "",
-      status:
-        row.status === "new"
-          ? "New"
-          : row.status === "contacted"
-          ? "Contacted"
-          : row.status === "in-progress"
-          ? "In Progress"
-          : row.status === "converted"
-          ? "Converted"
-          : "Closed",
+      status: normalizeStatus(row.status),
       createdAt: row.created_at,
       lastUpdated: row.updated_at || row.created_at,
     }));
+
+    const normalizeStatus = (status: string) => {
+      switch (status) {
+        case "new":
+          return "New";
+        case "contacted":
+          return "Contacted";
+        case "in_progress":
+          return "In Progress";
+        case "converted":
+          return "Converted";
+        case "closed":
+          return "Closed";
+        default:
+          return "New";
+      }
+    };
 
     console.log("✅ Backend mapped contact:", contacts[0]);
 
