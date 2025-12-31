@@ -111,9 +111,9 @@ export const sendUserConfirmation = async (
       to: data.to,
       from: {
         email: FROM_EMAIL,
-        name: "ACCIAN Nigeria Limited",
+        name: "ACCIAN Limited",
       },
-      subject: "Thank you for contacting ACCIAN Nigeria Limited",
+      subject: "Thank you for contacting ACCIAN Limited",
       html: html,
     };
 
@@ -157,7 +157,7 @@ export const sendAdminNotification = async (
     const html = replacePlaceholders(template, {
       ...data,
       timestamp: new Date(data.timestamp).toLocaleString("en-NG", {
-        timeZone: "Africa/Lagos",
+        timeZone: "UK/England/wales",
         dateStyle: "full",
         timeStyle: "long",
       }),
