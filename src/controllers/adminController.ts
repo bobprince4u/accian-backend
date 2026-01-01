@@ -233,7 +233,12 @@ export const login = async (
       data: {
         accessToken,
         refreshToken,
-        user: userPayload,
+        user: {
+          id: user.id,
+          email: user.email,
+          fullName: user.full_name,
+          role: user.role,
+        },
       },
     });
   } catch (error: unknown) {

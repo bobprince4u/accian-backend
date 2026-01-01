@@ -37,7 +37,11 @@ export const authenticateToken = (
       return res.status(403).json({ message: "Invalid token payload" });
     }
 
-    req.user = decoded as UserPayload;
+    req.user = {
+      id: decoded.id,
+      email: decoded.email,
+      role: decoded.role,
+    };
     next();
   } catch {
     return res.status(403).json({ message: "Invalid token" });
