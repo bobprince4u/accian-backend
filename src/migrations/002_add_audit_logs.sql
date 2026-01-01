@@ -1,4 +1,4 @@
-CREATE TABLE audit_logs (
+CREATE TABLE  IF NOT EXISTS audit_logs (
   id SERIAL PRIMARY KEY,
   admin_id INTEGER,
   action TEXT NOT NULL,
