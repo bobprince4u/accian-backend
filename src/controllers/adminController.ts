@@ -75,7 +75,7 @@ export const createAdmin = async (
       });
     }
 
-    // 🚨 BLOCK SIGNUP IF ADMIN ALREADY EXISTS
+    // BLOCK SIGNUP IF ADMIN ALREADY EXISTS
     const adminCount = await query("SELECT COUNT(*) FROM admin_users");
 
     if (Number(adminCount.rows[0].count) > 0) {
@@ -116,11 +116,10 @@ export const createAdmin = async (
       data: result.rows[0],
     });
   } catch (error) {
-    console.error("❌ Create admin error:", error);
+    console.error(" Create admin error:", error);
     next(error as Error);
   }
 };
-
 // ========================
 // Refresh Token
 // ========================
@@ -144,11 +143,29 @@ export const refreshToken = async (req: Request, res: Response) => {
       process.env.JWT_REFRESH_SECRET!
     );
 
+    // ✅ Fetch user data from database to get email and role
+    const userResult = await query(
+      "SELECT id, email, role FROM admin_users WHERE id = $1 AND active = true",
+      [decoded.id]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(403).json({ message: "User not found or inactive" });
+    }
+
+    const user = userResult.rows[0];
+
+    // Generate new access token with all required fields
     const newAccessToken = generateAccessToken({
-      id: decoded.id,
+      id: user.id.toString(),
+      email: user.email,
+      role: user.role,
     });
 
-    res.json({ accessToken: newAccessToken });
+    res.json({
+      success: true,
+      data: { accessToken: newAccessToken },
+    });
   } catch {
     return res.status(403).json({ message: "Expired refresh token" });
   }
@@ -210,7 +227,7 @@ export const login = async (
       role: user.role,
     };
 
-    // ✅ User payload - complete (includes fullName for frontend)
+    // User payload - complete (includes fullName for frontend)
     const userPayload: UserPayload = {
       id: user.id.toString(),
       email: user.email,
@@ -230,7 +247,7 @@ export const login = async (
     );
 
     console.log(
-      "✅ [DEBUG] Login successful! Token generated for user:",
+      " [DEBUG] Login successful! Token generated for user:",
       userPayload.email
     );
 
@@ -245,7 +262,7 @@ export const login = async (
     });
   } catch (error: unknown) {
     console.error(
-      "❌ [DEBUG] An unexpected error occurred during login:",
+      " [DEBUG] An unexpected error occurred during login:",
       error instanceof Error ? error.message : String(error)
     );
     next(error as Error);

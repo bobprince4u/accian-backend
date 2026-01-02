@@ -42,13 +42,17 @@ export const authenticateToken = (
       process.env.JWT_SECRET as string
     ) as Partial<TokenPayload>;
 
+    console.log("🔍 Decoded token:", decoded); // Debug log
+
     if (!decoded.id || !decoded.email || decoded.role !== "admin") {
+      console.log("❌ Missing required fields in token"); // Debug log
       return res.status(403).json({ message: "Invalid token payload" });
     }
 
     req.user = decoded as TokenPayload;
     next();
-  } catch {
+  } catch (error) {
+    console.log("❌ Token verification failed:", error); // Debug log
     return res.status(403).json({ message: "Invalid token" });
   }
 };
