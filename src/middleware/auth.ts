@@ -39,13 +39,13 @@ export const authenticateToken = (
   try {
     const decoded = jwt.verify(
       token,
-      process.env.JWT_SECRET as string
+      process.env.JWT_ACCESS_SECRET as string
     ) as Partial<TokenPayload>;
 
     console.log("🔍 Decoded token:", decoded); // Debug log
 
     if (!decoded.id || !decoded.email || decoded.role !== "admin") {
-      console.log("❌ Missing required fields in token"); // Debug log
+      console.log(" Invalid token payload:", decoded); // Debug log
       return res.status(403).json({ message: "Invalid token payload" });
     }
 
