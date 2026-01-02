@@ -1,16 +1,25 @@
 import jwt, { JwtPayload } from "jsonwebtoken";
 import { Request, Response, NextFunction } from "express";
 
-interface UserPayload {
+// JWT Token Payload (what goes IN the token - minimal)
+interface TokenPayload {
   id: string;
   email: string;
+  role: string;
+}
+
+// User Payload (what the app uses - includes all user info)
+export interface UserPayload {
+  id: string;
+  email: string;
+  fullName: string;
   role: string;
 }
 
 // Extend Express Request interface
 declare module "express-serve-static-core" {
   interface Request {
-    user?: UserPayload;
+    user?: TokenPayload;
   }
 }
 
@@ -31,17 +40,13 @@ export const authenticateToken = (
     const decoded = jwt.verify(
       token,
       process.env.JWT_SECRET as string
-    ) as Partial<UserPayload>;
+    ) as Partial<TokenPayload>;
 
     if (!decoded.id || !decoded.email || decoded.role !== "admin") {
       return res.status(403).json({ message: "Invalid token payload" });
     }
 
-    req.user = {
-      id: decoded.id,
-      email: decoded.email,
-      role: decoded.role,
-    };
+    req.user = decoded as TokenPayload;
     next();
   } catch {
     return res.status(403).json({ message: "Invalid token" });
@@ -59,6 +64,8 @@ export const requireAdmin = (
   next();
 };
 
-export const generateToken = (user: UserPayload): string => {
-  return jwt.sign(user, process.env.JWT_SECRET as string, { expiresIn: "10h" });
+export const generateToken = (payload: TokenPayload): string => {
+  return jwt.sign(payload, process.env.JWT_SECRET as string, {
+    expiresIn: "10h",
+  });
 };

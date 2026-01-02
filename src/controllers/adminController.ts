@@ -203,7 +203,14 @@ export const login = async (
       user.id,
     ]);
 
-    // Create user payload that matches UserPayload interface
+    // Create user payload that matches TokenPayload interface
+    const tokenPayload = {
+      id: user.id.toString(),
+      email: user.email,
+      role: user.role,
+    };
+
+    // ✅ User payload - complete (includes fullName for frontend)
     const userPayload: UserPayload = {
       id: user.id.toString(),
       email: user.email,
@@ -212,7 +219,7 @@ export const login = async (
     };
 
     // Generate tokens
-    const accessToken = generateAccessToken(userPayload); // short-lived token
+    const accessToken = generateAccessToken(tokenPayload); // short-lived token
     const refreshToken = generateRefreshToken({ id: user.id }); // long-lived token
 
     // Store refresh token in DB
@@ -233,12 +240,7 @@ export const login = async (
       data: {
         accessToken,
         refreshToken,
-        user: {
-          id: user.id,
-          email: user.email,
-          fullName: user.full_name,
-          role: user.role,
-        },
+        user: userPayload,
       },
     });
   } catch (error: unknown) {
