@@ -31,7 +31,9 @@ const requireAdmin = (req, res, next) => {
     next();
 };
 exports.requireAdmin = requireAdmin;
-const generateToken = (user) => {
-    return jsonwebtoken_1.default.sign(user, process.env.JWT_SECRET, { expiresIn: "10h" });
+const generateToken = (payload) => {
+    return jsonwebtoken_1.default.sign(payload, process.env.JWT_SECRET, {
+        expiresIn: "10h",
+    });
 };
 exports.generateToken = generateToken;

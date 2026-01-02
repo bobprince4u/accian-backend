@@ -110,7 +110,13 @@ const login = async (req, res, next) => {
         await (0, database_1.query)("UPDATE admin_users SET last_login = NOW() WHERE id = $1", [
             user.id,
         ]);
-        // Create user payload that matches UserPayload interface
+        // Create user payload that matches TokenPayload interface
+        const tokenPayload = {
+            id: user.id.toString(),
+            email: user.email,
+            role: user.role,
+        };
+        // ✅ User payload - complete (includes fullName for frontend)
         const userPayload = {
             id: user.id.toString(),
             email: user.email,
@@ -118,7 +124,7 @@ const login = async (req, res, next) => {
             role: user.role,
         };
         // Generate tokens
-        const accessToken = (0, token_1.generateAccessToken)(userPayload); // short-lived token
+        const accessToken = (0, token_1.generateAccessToken)(tokenPayload); // short-lived token
         const refreshToken = (0, token_1.generateRefreshToken)({ id: user.id }); // long-lived token
         // Store refresh token in DB
         await (0, database_1.query)(`INSERT INTO refresh_tokens (user_id, token, expires_at)
